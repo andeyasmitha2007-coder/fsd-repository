@@ -1,6 +1,10 @@
 import express from 'express';
 
 const app = express();
+// Homepage
+app.get("/", (req, res) => {
+    res.send("Welcome to my Express Application!");
+});
 
 // Middleware to parse JSON request body
 app.use(express.json());
