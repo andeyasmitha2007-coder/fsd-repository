@@ -1,125 +1,85 @@
-import express from 'express';
-
-const app = express();
-// Homepage
-app.get("/", (req, res) => {
-    res.send("Welcome to my Express Application!");
-});
-
-// Middleware to parse JSON request body
+import express from "express";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+dotenv.config();
+const app=express();
 app.use(express.json());
-
-const products = [];
-
-// POST - Create a new product URL: http://localhost:5000/products
-app.post("/products", (req, res) => {
-    const newProduct = req.body;
-
-    products.push(newProduct);
-
-    res.status(201).json({
-        message: "Product created successfully",
-        data: newProduct
+const PORT=process.env.PORT || 8000;
+const dbUrl=process.env.MONGO_URI;
+const dbname=process.env.DB_NAME;
+mongoose.connect(dbUrl,{
+    dbName:dbname,
+}).then(()=>{
+    console.log("Database connected successfully");
+}).catch((err)=>{
+    console.log("Database connection failed",err);
+});
+const moviesSchema=new mongoose.Schema({
+    title:{type:String,required:true},
+    director:{type:String,required:true},
+    year:{type:Number,required:true},
+    category:{type:String,required:true},
+});
+const Movie=mongoose.model("Movie",moviesSchema);
+//create a new movie
+app.post("/api/v1/movies",async(req,res)=>{
+    const newMovie=req.body;
+    Movie.create(newMovie).then((result)=>{
+        res.status(201).json({message:"Movie created successfully", data:result});
+    }).catch((err)=>{
+        res.status(500).json({err:err,message:"failed to create movie"});
     });
 });
-
-
-// GET - Read all products
-// URL: http://localhost:5000/products
-app.get("/products", (req, res) => {
-    res.status(200).json({
-        message: "Products fetched successfully",
-        data: products
+//get all movies and filter by category
+app.get("/api/v1/movies",async(req,res)=>{
+    const {category}=req.query;
+    const query=category?{category}:{};
+    Movie.find(query).then((result)=>{
+        res.status(200).json({message:"Movies fetched successfully",data:result});
+    }).catch((err)=>{
+        res.status(500).json({err:err,message:"failed to fetch movies"});
     });
 });
-
-
-// GET - Read product by ID URL: http://localhost:5000/products/:id
-
-app.get("/products/:id", (req, res) => {
-    const productId = parseInt(req.params.id);
-
-    const product = products.find(
-        (p) => p.id === productId
-    );
-
-    if (product) {
-        res.status(200).json({
-            message: "Product details fetched successfully",
-            data: product
-        });
-    } else {
-        res.status(404).json({
-            message: "Product not found"
-        });
-    }
+//get movie by id
+app.get("/api/v1/movies/:id",async(req,res)=>{
+    const {id}=req.params;
+    Movie.findById(id).then((result)=>{
+        res.status(200).json({message:"Movie fetched successfully",data:result});
+    }).catch((err)=>{
+        res.status(500).json({err:err,message:"Movie not found"});
+    });
 });
-
-
-// PUT - Update product by ID URL: http://localhost:5000/products/:id
-
-app.put("/products/:id", (req, res) => {
-    const productId = parseInt(req.params.id);
-    const updateProduct = req.body;
-
-    const productIndex = products.findIndex(
-        (prod) => prod.id === productId
-    );
-
-    if (productIndex !== -1) {
-
-        products[productIndex] = {
-            ...products[productIndex],
-            ...updateProduct
-        };
-
-        res.status(200).json({
-            message: "Product updated successfully",
-            data: products[productIndex]
-        });
-
-    } else {
-
-        res.status(404).json({
-            message: "Product not found"
-        });
-
-    }
+//update movie by id
+app.put("/api/v1/movies/:id",async(req,res)=>{
+    const {id}=req.params;
+    const updatedMovie=req.body;
+    Movie.findByIdAndUpdate(id,updatedMovie,{new:true}).then((result)=>{
+        if(result){
+            res.status(200).json({message:"Movie updated successfully",data:result});
+        }else{
+            res.status(404).json({message:"Movie not found"});
+        }
+    }).catch((err)=>{
+        res.status(500).json({err:err,message:"failed to update movie"});
+    });
 });
-
-
-
-// DELETE - Delete product by ID URL: http://localhost:5000/products/:id
-app.delete("/products/:id", (req, res) => {
-    const productId = parseInt(req.params.id);
-
-    const productIndex = products.findIndex(
-        (prod) => prod.id === productId
-    );
-
-    if (productIndex !== -1) {
-
-        const deleteProduct =
-            products.splice(productIndex, 1)[0];
-
-        res.status(200).json({
-            message: "Product deleted successfully",
-            data: deleteProduct
-        });
-
-    } else {
-
-        res.status(404).json({
-            message: "Product not found"
-        });
-
-    }
+//delete movie by id
+app.delete("/api/v1/movies/:id",async(req,res)=>{
+    const {id}=req.params;
+    Movie.findByIdAndDelete(id).then((result)=>{
+        if(result){
+            res.status(200).json({message:"Movie deleted successfully",data:result});
+        }else{
+            res.status(404).json({message:"Movie not found"});
+        }
+    }).catch((err)=>{
+        res.status(500).json({err:err,message:"failed to delete movie"});
+    });
 });
-
-
-
-app.listen(5000, () => {
-    console.log(
-        "Server is running at http://localhost:5000"
-    );
+//test route
+app.get("/",(req,res)=>{ 
+    res.status(200).json({message:"Welcome to the movie API"});
+});
+app.listen(PORT,()=>{
+    console.log(`Server is running on port ${PORT}`);
 });
